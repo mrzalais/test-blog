@@ -29,7 +29,7 @@ class ArticlesControllerTest extends TestCase
             ->assertSee('Create');
     }
 
-    public function testShowArticle(): void
+/*    public function testShowArticle(): void
     {
         $user = User::factory()->create();
         $this->actingAs($user);
@@ -43,7 +43,7 @@ class ArticlesControllerTest extends TestCase
             'article' => $article
         ]));
         $response->assertSee('find this title');
-    }
+    }*/
 
     public function testCreateNewArticle(): void
     {
@@ -100,6 +100,7 @@ class ArticlesControllerTest extends TestCase
         $response->assertStatus(200);
 
         $this->assertDatabaseHas('articles', [
+            'id' => $article->id,
             'title' => 'New title',
         ]);
     }
@@ -125,10 +126,113 @@ class ArticlesControllerTest extends TestCase
 
         $response->assertStatus(200);
 
-        $this->assertDatabaseMissing('articles', [
+        $this->assertSoftDeleted('articles', [
             'user_id' => $user->id,
             'title' => $article->title,
-            'content' => $article->content
+            'content' => $article->content,
         ]);
+    }
+
+    public function testRedirectWhenUnauthorizedTriesToCreateArticle(): void
+    {
+        $response = $this->get(route('articles.create'), [
+            'title' => 'Example title',
+            'content' => 'Example content',
+        ]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('login'));
+    }
+
+    public function testRedirectWhenUnauthorizedTriesToSeeCreateForm(): void
+    {
+        $response = $this->get(route('articles.create'));
+        $response->assertStatus(302);
+        $response->assertRedirect(route('login'));
+    }
+
+    public function testRedirectWhenUnauthorizedTriesToSeeCreateForm1(): void
+    {
+        $article = Article::factory()->create();
+
+        $response = $this->get(route('articles.create', $article));
+        $response->assertStatus(302);
+        $response->assertRedirect(route('login'));
+    }
+
+    public function testRedirectWhenUnauthorizedTriesToCreateArticle1(): void
+    {
+        $article = Article::factory()->create();
+
+        $response = $this->put(route('articles.create', $article), [
+            'title' => 'Example title',
+            'content' => 'Example content',
+        ]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('login'));
+    }
+
+    public function testOtherUserCannotUpdateMyArticle(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $article = Article::factory()->create();
+
+        $response = $this->put(route('articles.update', $article), [
+            'title' => 'New title',
+            'content' => 'New Content',
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function testOtherUserCannotDeleteMyArticle(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $article = Article::factory()->create();
+
+        $response = $this->delete(route('articles.update', $article));
+
+        $response->assertStatus(403);
+    }
+
+    public function testOtherUserCannotEditMyArticle(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $article = Article::factory()->create();
+
+        $response = $this->get(route('articles.edit', [
+            'article' => $article
+        ]));
+
+        $response->assertDontSee('find this title');
+    }
+
+/*    public function testOtherUserCannotStoreMyArticle(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $article = Article::factory()->create();
+    }*/
+
+    public function testOtherUserCannotCreateMyArticle(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $article = Article::factory()->create();
+
+        $response = $this->get(route('articles.create', [
+            'article' => $article
+        ]));
+
+        $response->assertDontSee('find this title');
     }
 }

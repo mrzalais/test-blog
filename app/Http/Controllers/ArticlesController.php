@@ -2,11 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\ArticleCountIncreased;
+use App\Events\ArticleWasCreated;
 use App\Models\Article;
 use Illuminate\Http\Request;
 
 class ArticlesController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth', ['except' => ['show', 'index']]);
+    }
 
     public function index()
     {
@@ -17,14 +23,20 @@ class ArticlesController extends Controller
 
     public function create()
     {
+        $this->authorize('create', Article::class);
+
         return view ('articles.create');
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', Article::class);
+
         $article = (new Article)->fill($request->all());
         $article->user()->associate(auth()->user());
         $article->save();
+
+        event(new ArticleWasCreated($article));
 
         return redirect()->route('articles.index');
     }
@@ -52,6 +64,8 @@ class ArticlesController extends Controller
 
     public function destroy(Article $article)
     {
+        $this->authorize('delete', $article);
+
         $article->delete();
 
         return redirect()->route('articles.index');
